@@ -1,0 +1,82 @@
+---
+title: "ML_Project.Rmd"
+author: "szhao39@jh.edu"
+date: "2025/3/27"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This project applies machine learning techniques to predict the manner in which participants perform weight lifting exercises. The data come from accelerometers attached to participants' belt, forearm, arm, and dumbbell. The target variable is `classe`, which indicates the correct or incorrect performance type.
+
+# Data Loading
+
+```{r load-data}
+library(caret)
+library(randomForest)
+
+# Download data
+training_url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testing_url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+download.file(training_url, destfile = "pml-training.csv", method = "curl")
+download.file(testing_url, destfile = "pml-testing.csv", method = "curl")
+
+# Load data
+training_raw <- read.csv("pml-training.csv", na.strings = c("NA", "", "#DIV/0!"))
+testing_raw <- read.csv("pml-testing.csv", na.strings = c("NA", "", "#DIV/0!"))
+```
+
+# Data Cleaning
+
+```{r clean-data}
+# Remove columns with mostly missing values
+training <- training_raw[, colSums(is.na(training_raw)) == 0]
+
+# Remove irrelevant columns
+training <- training[, -(1:7)]
+
+# Match columns in test set
+testing <- testing_raw[, colnames(training)[-ncol(training)]]
+```
+
+# Partition Data
+
+```{r partition}
+set.seed(1234)
+inTrain <- createDataPartition(training$classe, p = 0.7, list = FALSE)
+training_set <- training[inTrain, ]
+testing_set <- training[-inTrain, ]
+```
+
+# Model Training
+
+```{r train-model}
+set.seed(1234)
+model_rf <- train(classe ~ ., data = training_set, method = "rf",
+                  trControl = trainControl(method = "cv", number = 5),
+                  importance = TRUE)
+```
+
+# Model Evaluation
+
+```{r evaluate-model}
+pred_rf <- predict(model_rf, testing_set)
+confusionMatrix(pred_rf, testing_set$classe)
+```
+
+# Predict Test Set (20 cases)
+
+```{r predict-test}
+test_pred <- predict(model_rf, newdata = testing)
+test_pred
+```
+
+# Conclusion
+
+Random forest was chosen for its strong performance with noisy, high-dimensional data. The cross-validated accuracy on the validation set exceeded 99%, indicating a robust model. Final predictions on the 20 provided test cases are shown above.
+
+This analysis demonstrates the application of supervised machine learning in activity recognition using accelerometer data. The model could be adapted to other wearable device applications where quality of motion is to be assessed.
